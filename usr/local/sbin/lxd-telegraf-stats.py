@@ -6,7 +6,6 @@ import sys
 import json
 import multiprocessing
 import subprocess
-import commands 
 import collections
 import re
 
@@ -80,7 +79,7 @@ globalmetrics['other']['live'] = 1
 globalmetrics['cpu']['total'] = multiprocessing.cpu_count()
 globalmetrics['mem']['total'] = mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
 try:
-  globalmetrics['hdd']['total'] = human2bytes(commands.getoutput("zpool list " + lxdstorage + " | grep " + lxdstorage + " | awk -F ' +' '{print $2}'")+'B')
+  globalmetrics['hdd']['total'] = human2bytes(subprocess.getoutput("zpool list " + lxdstorage + " | grep " + lxdstorage + " | awk -F ' +' '{print $2}'")+'B')
 except:
   # storage not found, or we dont have zfs storage
   globalmetrics['hdd']['total'] = 1
@@ -279,14 +278,14 @@ globalmetrics['hdd']['given_pct'] = int(globalmetrics['hdd']['given'] * 100 / gl
 globalmetrics['containers']['notrunning'] = globalmetrics['containers']['total'] - globalmetrics['containers']['running']
 
 if outputtype == "json":
-  print json.dumps(lxdmetrics)
-  print json.dumps(globalmetrics)
+  print(json.dumps(lxdmetrics))
+  print(json.dumps(globalmetrics))
   sys.exit()
 
 # influx output
 output = []
 # loop for containers metrics
-for container, metric in lxdmetrics.iteritems():
+for container, metric in lxdmetrics.items():
     header = "lxd,type=container,hostname=" + container
     try:
       # try to split hostname to name and instance by dash delimiter
@@ -296,19 +295,20 @@ for container, metric in lxdmetrics.iteritems():
       # if error, keep it as is so this script shoudl work in default environment out of the zerops
       pass
     if metric['running'] == 1:
-      output.append(header + ",metric=status running=" + str(metric['running']) + ",processes=" + str(metric['processes']) + ",cpuprio=" + str(metric['cpuprio']) + ",hddprio=" + str(metric['hddprio']))
+      print(metric)
+      output.append(header + ",metric=status running=" + str(metric['running']) + ",processes=" + str(metric['processes']) + ",cpuprio=" + str(metric['cpuprio']))
       # metrics with only one level inside dictionary
       for onelevel in ["mem", "swap", "cpu", "blkio"]:
         metricarr = []
-        for key, value in metric[onelevel].iteritems():
+        for key, value in metric[onelevel].items():
           metricarr.append(key + "=" + str(value))
 	# output definition for single metric
         output.append(header + ",metric=" + onelevel + " " + ','.join(metricarr))
       # metrics with two levels inside dictionary
       for twolevel in ["net", "disk"]:
-        for key, value in metric[twolevel].iteritems():
+        for key, value in metric[twolevel].items():
           metricarr = []
-          for m,v in value.iteritems():
+          for m,v in value.items():
             metricarr.append(str(m) + "=" + str(v))
           output.append(header + ",metric=" + twolevel + ",dev=" + key  + " " + ','.join(metricarr))
     else:
@@ -316,15 +316,15 @@ for container, metric in lxdmetrics.iteritems():
       output.append(header + ",metric=status running=" + str(metric['running']))
 
 # loop for master metrics
-for metric, value in globalmetrics.iteritems():
+for metric, value in globalmetrics.items():
     header = "lxd,type=master"
     # metrics with only one leddvel inside dictionary
     metricarr = []
-    for key, value in value.iteritems():
+    for key, value in value.items():
       metricarr.append(key + "=" + str(value))
     output.append(header + ",metric=" + metric + " " + ','.join(metricarr))
 
-print '\n'.join(output)
+print('\n'.join(output))
 
 try:
     sys.stdout.close()
@@ -334,3 +334,4 @@ try:
     sys.stderr.close()
 except:
     pass
+
